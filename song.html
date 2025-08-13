@@ -2,102 +2,728 @@
 <html lang="ro">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Pagina Cântec — GWI</title>
-  <link rel="stylesheet" href="/styles.css" />
+  <title>Cântec — GWI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- your palette / base styles -->
+  <link rel="stylesheet" href="styles.css" />
+
   <style>
-    .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
-    .card { background: rgba(255,255,255,0.85); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); padding: 16px; }
-    .meta { display:flex; gap:16px; flex-wrap:wrap; color:#263839; margin:8px 0 14px; }
-    .meta .pill { background:#eef3f3; border-radius: 24px; padding:6px 10px; }
-    .banner { background:#263839; color:#fff; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
-    .brand { display:flex; align-items:center; gap:10px; cursor:pointer; }
-    .brand img { height:26px; }
-    .menu { display:flex; align-items:center; gap:14px; }
-    .menu a { color:#fff; text-decoration:none; font-weight:500; }
+    /* minimal helpers to complement your styles.css */
+    :root {
+      --banner: #2f5d6a;      /* your green banner tone */
+      --ink: #263839;         /* your dark text/button */
+      --muted: #f3f4f6;       /* light grey bg */
+      --card: #ffffff;
+      --accent: #3b82f6;
+      --border: #e5e7eb;
+      --warning: #f59e0b;
+    }
+    body { background: var(--muted); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+    .banner {
+      background: var(--banner); color: #fff; padding: 16px;
+      display:flex; align-items:center; justify-content:space-between; border-radius: 12px;
+    }
+    .app-title { display:flex; gap:12px; align-items:center; font-weight:700; letter-spacing:.5px; }
+    .logo { height:28px; width:auto; }
+    .pill { background: rgba(255,255,255,.15); padding:6px 10px; border-radius:999px; font-size:12px; }
+
+    .page { margin-top: 16px; display:grid; grid-template-columns: 1fr; gap:16px; }
+    /* Top toolbar row */
+    .toolbar {
+      background: var(--card); border:1px solid var(--border);
+      border-radius: 12px; padding: 10px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+    }
+    .toolbar .group { display:flex; gap:8px; align-items:center; padding-right:10px; border-right:1px solid var(--border); }
+    .toolbar .group:last-child { border-right:none; }
+    .btn, .select, .input {
+      background:#fff; border:1px solid var(--border); padding:6px 10px; border-radius:8px; font-size:14px;
+    }
+    .btn { cursor:pointer; }
+    .btn.primary { background: var(--ink); color:#fff; }
+    .btn.ghost { background: transparent; border:1px dashed var(--border); }
+    .toggle { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+    /* Meta bars */
+    .meta-card, .controls-card {
+      background: var(--card); border:1px solid var(--border);
+      border-radius:12px; padding: 12px;
+    }
+
+    /* Song layout */
+    .song-title { font-size: 24px; color: var(--ink); font-weight: 700; }
+    .meta { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:#374151; }
+    .meta a { text-decoration: none; }
+    .badge { background:#eef2ff; color:#4338ca; padding:4px 8px; border-radius:999px; font-size:12px; }
+
+    /* Section band (who sings / intensity) */
+    .section-band {
+      background:#e9fbf1; border-left:4px solid #10b981; color:#065f46;
+      padding:8px 10px; border-radius:8px; margin-top:10px; font-size:13px;
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+
+    /* Chorded lyrics */
+    .section-title { margin-top:16px; font-weight:700; color:#111827; }
+    .lyrics-block { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap; line-height: 1.6; background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; }
+    .line { position:relative; display:block; margin: 0 0 12px 0; }
+    .chords { position:relative; display:block; height:1em; line-height:1; margin-bottom:2px; }
+    .chord { position:relative; display:inline-block; font-weight:700; color:#b45309; } /* nice brownish for chords */
+    .lyrics { display:block; }
+
+    /* Notes canvas */
+    .notes-wrap {
+      position: relative; background:#fff; border:1px solid var(--border);
+      border-radius:12px; overflow:hidden; height:480px;
+    }
+    canvas#notesCanvas { width:100%; height:100%; display:block; }
+
+    /* Floating pencil button for show/hide notes panel on smaller screens */
+    .floating-pencil { position: fixed; right: 16px; bottom: 16px; z-index: 20; }
+
+    /* Right side panel (appears when editing notes) */
+    .drawer {
+      position: fixed; top:0; right:0; height:100vh; width:360px; background:#fff; border-left:1px solid var(--border);
+      box-shadow: -8px 0 24px rgba(0,0,0,.05); padding:14px; transform: translateX(100%); transition: transform .25s ease;
+      z-index: 30; overflow:auto;
+    }
+    .drawer.open { transform: translateX(0%); }
+
+    /* Upcoming banner */
+    .upcoming {
+      background:#fffbeb; border:1px solid #fcd34d; color:#92400e;
+      border-radius: 10px; padding: 10px; display:flex; gap:8px; align-items:center; justify-content: space-between;
+    }
+    .small { font-size:12px; color:#6b7280; }
   </style>
 </head>
 <body>
+  <!-- Banner -->
   <header class="banner">
-    <div class="brand" onclick="location.href='/'">
-      <img src="/logo-white.png" alt="GWI" />
-      <strong>GENESIS Worship Initiative</strong>
+    <div class="app-title">
+      <img src="logo-white.png" alt="GWI" class="logo" />
+      <span>GENESIS Worship Initiative</span>
     </div>
-    <nav class="menu">
-      <a href="/index.html">Home</a>
-      <a href="/song-index.html">Songs List</a>
-      <a href="/playlists.html">Playlists</a>
-      <a href="/availability.html">Availability</a>
-      <a href="/prayer-wall.html">Prayer Wall</a>
-      <a href="/profile.html">Profil</a>
+    <nav class="row">
+      <a href="index.html" class="pill">Acasă</a>
+      <a href="playlists.html" class="pill">Playlisturi</a>
+      <a href="songs.html" class="pill">Lista Cântece</a>
+      <a href="availability.html" class="pill">Disponibilitate</a>
+      <a href="prayers.html" class="pill">Perete Rugăciune</a>
+      <a href="profile.html" class="pill">Profil</a>
     </nav>
   </header>
 
-  <main class="container">
-    <div class="card" id="songCard">
-      <h2 id="title" style="margin:0 0 6px;">—</h2>
-      <div class="meta" id="metaRow">
-        <!-- BPM / Key / links injected -->
+  <main class="container page">
+    <!-- 0) Upcoming info (only if this song is in an upcoming playlist) -->
+    <section id="upcomingBox" class="upcoming" style="display:none;">
+      <div><strong>Apare în playlist:</strong> <span id="upcomingDate"></span></div>
+      <div class="small">Lead: <span id="upcomingLead"></span> • Armonie: <span id="upcomingHarmony"></span></div>
+    </section>
+
+    <!-- 1) Top toolbar (Apple Notes‑like + Export/Share) -->
+    <section class="toolbar" aria-label="Bara de unelte">
+      <div class="group">
+        <button class="btn" id="penTool" title="Creion ✏️">✏️</button>
+        <button class="btn" id="markerTool" title="Cariocă 🖊️">🖊️</button>
+        <button class="btn" id="highlighterTool" title="Highlighter 🖍️">🖍️</button>
+        <label class="row small">Grosime
+          <input id="strokeWidth" type="range" min="1" max="16" value="3" />
+        </label>
+        <label class="row small">Transparență
+          <input id="strokeAlpha" type="range" min="0.1" max="1" value="1" step="0.1" />
+        </label>
       </div>
-
-      <div id="upcomingInfo" style="margin:8px 0 14px; display:none;" class="muted"></div>
-
-      <hr style="margin:16px 0; border:none; border-top:1px solid #eaeaea;" />
-
-      <div id="lyricsArea" style="white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color:#0a3a40;">
-        <!-- lyrics/chords (placeholder for now) -->
+      <div class="group">
+        <button class="btn" id="textTool" title="Text">Text</button>
+        <select id="fontFamily" class="select">
+          <option>Inter</option>
+          <option>Arial</option>
+          <option>Georgia</option>
+          <option>Courier New</option>
+        </select>
+        <input id="fontSize" class="input" type="number" min="10" max="72" value="18" style="width:80px" />
+        <input id="strokeColor" class="input" type="color" value="#b45309" title="Culoare" />
+        <button class="btn" id="symbolsBtn" title="Simboluri cântat">Σ</button>
       </div>
-    </div>
+      <div class="group">
+        <label class="toggle">
+          <input id="notesToggle" type="checkbox" />
+          <span>Notițe personale ON/OFF</span>
+        </label>
+      </div>
+      <div class="group">
+        <div class="row">
+          <button class="btn" id="exportPdfBtn" title="Export PDF">Export PDF</button>
+          <button class="btn" id="shareNotesBtn" title="Partajează notițe">Share</button>
+          <button class="btn ghost" id="clearNotesBtn" title="Curăță notițe">Reset</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2) Meta controls (notation/layout + MD + Follow MD) -->
+    <section class="controls-card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="row">
+          <label class="row">Sistem notație
+            <select id="notationSelect" class="select">
+              <option value="intl">International</option>
+              <option value="nash">Nashville</option>
+            </select>
+          </label>
+          <label id="nashKeyWrap" class="row" style="display:none;">Cheia Nashville
+            <select id="nashKeySelect" class="select"></select>
+          </label>
+          <label class="row">Layout
+            <select id="layoutSelect" class="select">
+              <option value="lyrics_chords">Versuri + Acorduri</option>
+              <option value="lyrics_only">Doar versuri</option>
+              <option value="cues">Cues (toboșari)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <!-- Admin only: choose MD -->
+          <div id="mdAdminWrap" class="row" style="display:none;">
+            <label>MD:
+              <select id="mdSelect" class="select"></select>
+            </label>
+          </div>
+          <!-- Everyone: follow MD -->
+          <label class="toggle">
+            <input id="followMdToggle" type="checkbox" />
+            <span>Urmărește MD</span>
+          </label>
+          <!-- Live controls only if admin (you asked to hide for others) -->
+          <div id="adminSignalsWrap" class="row" style="display:none;">
+            <select id="signalSelect" class="select">
+              <option value="">Semnal live…</option>
+              <option value="repeat">Repetă</option>
+              <option value="stop">Stop</option>
+              <option value="tech">Problemă tehnică</option>
+              <option value="custom">Mesaj personalizat…</option>
+            </select>
+            <button class="btn" id="sendSignalBtn">Trimite</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3) Title + meta and resources -->
+    <section class="meta-card">
+      <div class="song-title" id="songTitle">—</div>
+      <div class="meta" style="margin-top:6px;">
+        <span class="badge">BPM: <span id="songBpm">—</span></span>
+        <span class="badge">Gama: <span id="songKey">—</span></span>
+        <a id="ytLink" class="badge" href="#" target="_blank" rel="noopener">YouTube</a>
+        <a id="audio1Link" class="badge" href="#" target="_blank" rel="noopener">Audio</a>
+        <a id="audio2Link" class="badge" href="#" target="_blank" rel="noopener">Armonie</a>
+      </div>
+    </section>
+
+    <!-- 4) Section band (editable by template editor/admin when you build that UI) -->
+    <section class="section-band" id="topInstructionBand" style="display:none;">
+      <div id="bandText">Instrucțiuni / cine cântă / intensitate</div>
+      <span class="small">Puteți poziționa aceste benzi între secțiuni când editați template‑ul.</span>
+    </section>
+
+    <!-- 5) Lyrics + chords rendered -->
+    <section class="lyrics-block" id="lyricsBlock">Se încarcă…</section>
+
+    <!-- 6) Personal Notes Canvas (sync per user+song or user+playlist+song) -->
+    <section>
+      <div class="row" style="justify-content:space-between; margin-bottom:6px;">
+        <strong>Notițele mele</strong>
+        <span class="small">Vizibile doar ție (adminul nu le vede, decât dacă i le trimiți cu “Share”).</span>
+      </div>
+      <div class="notes-wrap">
+        <canvas id="notesCanvas"></canvas>
+      </div>
+      <button class="btn primary floating-pencil" id="toggleDrawerBtn" title="Editează notițe">✏️</button>
+    </section>
   </main>
 
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <script>
-    const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqcXBodGVxeXFqa2F0aHhtcnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwOTE0NDYsImV4cCI6MjA3MDY2NzQ0Nn0.qRCVrh3MI0KmZZTrSGGshycIj7A5PywFlqIxqwcqBqw";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    const params = new URLSearchParams(location.search);
-    const songId = params.get('id');
+  <!-- Drawer with extra note tools / share target list -->
+  <aside id="drawer" class="drawer" aria-label="Panou de notițe">
+    <div class="row" style="justify-content:space-between;">
+      <h3>Unelte Notițe</h3>
+      <button class="btn" id="closeDrawerBtn">✖</button>
+    </div>
+    <hr style="margin:10px 0;" />
+    <div class="row" style="gap:6px; flex-wrap:wrap;">
+      <button class="btn" id="penTool2">✏️ Creion</button>
+      <button class="btn" id="markerTool2">🖊️ Cariocă</button>
+      <button class="btn" id="highlighterTool2">🖍️ Highlighter</button>
+      <input id="strokeColor2" class="input" type="color" value="#b45309" />
+      <input id="strokeWidth2" type="range" min="1" max="16" value="3" />
+      <input id="strokeAlpha2" type="range" min="0.1" max="1" value="1" step="0.1" />
+    </div>
 
-    function pill(label, value) {
-      return `<span class="pill"><strong>${label}:</strong> ${value || '—'}</span>`;
-    }
-    function linkPill(label, url) {
-      if (!url) return '';
-      const safe = url.replace(/"/g,'&quot;');
-      return `<span class="pill"><strong>${label}:</strong> <a href="${safe}" target="_blank" rel="noopener">deschide</a></span>`;
+    <h4 style="margin-top:12px;">Trimite notițele (share)</h4>
+    <p class="small">Alege utilizatori. Le vom salva o copie pentru ei (nu le face publice tuturor):</p>
+    <div id="shareTargets"></div>
+    <button class="btn" id="shareNowBtn" style="margin-top:8px;">Trimite</button>
+  </aside>
+
+  <!-- Supabase + App Logic -->
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const SUPABASE_URL = 'https://jjqphteqyqjkathxmrrx.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpqcXBodGVxeXFqa2F0aHhtcnJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwOTE0NDYsImV4cCI6MjA3MDY2NzQ0Nn0.qRCVrh3MI0KmZZTrSGGshycIj7A5PywFlqIxqwcqBqw'
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // --- Helpers ---
+    const qs = new URLSearchParams(location.search)
+    const songId = qs.get('id') // required
+    const playlistId = qs.get('playlist') // optional: when opened from a playlist
+
+    // Nashville helpers
+    const NOTE_ORDER_INTL = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+    const NOTE_ORDER_FLAT = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B']
+    function nashNumbersForKey(root) {
+      const idx = NOTE_ORDER_INTL.indexOf(root) !== -1
+                ? NOTE_ORDER_INTL.indexOf(root)
+                : NOTE_ORDER_FLAT.indexOf(root)
+      if (idx < 0) return {}
+      const cycle = i => NOTE_ORDER_INTL[(idx + i) % 12]
+      // crude map for I…VII (1..7) triads
+      return {
+        [cycle(0)]: '1', [cycle(2)]: '2', [cycle(4)] : '3',
+        [cycle(5)]: '4', [cycle(7)]: '5', [cycle(9)] : '6',
+        [cycle(11)]: '7'
+      }
     }
 
+    function chordToNash(chord, map) {
+      // very simple parser: root (w/ sharp|flat) + optional slash bass — keeps suffix as is (m, sus4, 7, etc.)
+      const m = chord.match(/^([A-G](?:#|b)?)(.*?)(?:\/([A-G](?:#|b)?))?$/)
+      if (!m) return chord
+      const [,root, suffix, bass] = m
+      const n = map[root] || root
+      const b = bass ? (map[bass] || bass) : null
+      return b ? `${n}${suffix? suffix:''}/${b}` : `${n}${suffix? suffix:''}`
+    }
+
+    function placeChordsLine(text) {
+      // input like: "Mi[-]numită [D]dragoste" with [D] tags; we render a chord line aligned above the matching letter
+      const chordPositions = []
+      let pure = ''
+      let i = 0
+      while (i < text.length) {
+        if (text[i] === '[') {
+          const j = text.indexOf(']', i)
+          if (j > i) {
+            const chord = text.slice(i+1, j)
+            chordPositions.push({ idx: pure.length, chord })
+            i = j + 1
+            continue
+          }
+        }
+        pure += text[i]; i++
+      }
+      // Build chord line with non‑breaking spaces for positioning
+      let chordLine = ''
+      let last = 0
+      chordPositions.forEach(({idx, chord}) => {
+        const spaces = idx - last
+        chordLine += '&nbsp;'.repeat(Math.max(spaces, 0)) + `<span class="chord">${chord}</span>`
+        last = idx
+      })
+      return { pure, chordHtml: chordLine }
+    }
+
+    // DOM refs
+    const lyricsBlock = document.getElementById('lyricsBlock')
+    const songTitleEl = document.getElementById('songTitle')
+    const songBpmEl = document.getElementById('songBpm')
+    const songKeyEl = document.getElementById('songKey')
+    const ytLink = document.getElementById('ytLink')
+    const audio1Link = document.getElementById('audio1Link')
+    const audio2Link = document.getElementById('audio2Link')
+    const topInstructionBand = document.getElementById('topInstructionBand')
+
+    const notationSelect = document.getElementById('notationSelect')
+    const nashKeyWrap = document.getElementById('nashKeyWrap')
+    const nashKeySelect = document.getElementById('nashKeySelect')
+    const layoutSelect = document.getElementById('layoutSelect')
+
+    const mdAdminWrap = document.getElementById('mdAdminWrap')
+    const mdSelect = document.getElementById('mdSelect')
+    const followMdToggle = document.getElementById('followMdToggle')
+    const adminSignalsWrap = document.getElementById('adminSignalsWrap')
+    const signalSelect = document.getElementById('signalSelect')
+    const sendSignalBtn = document.getElementById('sendSignalBtn')
+
+    const upcomingBox = document.getElementById('upcomingBox')
+    const upcomingDate = document.getElementById('upcomingDate')
+    const upcomingLead = document.getElementById('upcomingLead')
+    const upcomingHarmony = document.getElementById('upcomingHarmony')
+
+    // Notes canvas
+    const canvas = document.getElementById('notesCanvas')
+    const ctx = canvas.getContext('2d')
+    function fitCanvas() {
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = canvas.clientWidth * dpr
+      canvas.height = canvas.clientHeight * dpr
+      ctx.scale(dpr, dpr)
+      redraw()
+    }
+    window.addEventListener('resize', fitCanvas)
+
+    let tool = 'pen'
+    let color = '#b45309'
+    let width = 3
+    let alpha = 1
+    let drawing = false
+    let strokes = [] // each: { tool, color, width, alpha, points:[{x,y}], text?:{value,font,size,x,y} }
+
+    function redraw() {
+      ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight)
+      for (const s of strokes) {
+        if (s.tool === 'text' && s.text) {
+          ctx.globalAlpha = 1
+          ctx.fillStyle = s.color
+          ctx.font = `${s.size || 18}px ${s.font || 'Inter'}`
+          ctx.fillText(s.text.value, s.text.x, s.text.y)
+          continue
+        }
+        ctx.globalAlpha = s.alpha ?? 1
+        ctx.strokeStyle = s.color
+        ctx.lineWidth = s.width
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        s.points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y)
+          else ctx.lineTo(p.x, p.y)
+        })
+        ctx.stroke()
+      }
+      ctx.globalAlpha = 1
+    }
+
+    function pointerPos(e) {
+      const r = canvas.getBoundingClientRect()
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top
+      return { x, y }
+    }
+
+    function startDraw(e) {
+      if (!document.getElementById('notesToggle').checked) return
+      if (tool === 'text') return // text is via click
+      drawing = true
+      const p = pointerPos(e)
+      strokes.push({ tool, color, width, alpha, points: [p] })
+      redraw()
+    }
+    function moveDraw(e) {
+      if (!drawing) return
+      const p = pointerPos(e)
+      const s = strokes[strokes.length - 1]
+      s.points.push(p)
+      redraw()
+    }
+    function endDraw() { drawing = false; saveNotesDebounced() }
+
+    canvas.addEventListener('mousedown', startDraw)
+    canvas.addEventListener('mousemove', moveDraw)
+    canvas.addEventListener('mouseup', endDraw)
+    canvas.addEventListener('mouseleave', endDraw)
+    canvas.addEventListener('touchstart', startDraw, {passive:true})
+    canvas.addEventListener('touchmove', moveDraw, {passive:true})
+    canvas.addEventListener('touchend', endDraw)
+
+    // Tools wiring
+    const penTool = document.getElementById('penTool')
+    const markerTool = document.getElementById('markerTool')
+    const highlighterTool = document.getElementById('highlighterTool')
+    const textTool = document.getElementById('textTool')
+    const strokeWidth = document.getElementById('strokeWidth')
+    const strokeAlpha = document.getElementById('strokeAlpha')
+    const strokeColor = document.getElementById('strokeColor')
+    penTool.onclick = () => tool='pen'
+    markerTool.onclick = () => tool='marker'
+    highlighterTool.onclick = () => { tool='high'; alpha = 0.35; document.getElementById('strokeAlpha').value = 0.35 }
+    textTool.onclick = () => tool='text'
+    strokeWidth.oninput = e => width = +e.target.value
+    strokeAlpha.oninput = e => alpha = +e.target.value
+    strokeColor.oninput = e => color = e.target.value
+
+    // Drawer duplicate controls (kept in sync)
+    const drawer = document.getElementById('drawer')
+    const toggleDrawerBtn = document.getElementById('toggleDrawerBtn')
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn')
+    const penTool2 = document.getElementById('penTool2')
+    const markerTool2 = document.getElementById('markerTool2')
+    const highlighterTool2 = document.getElementById('highlighterTool2')
+    const strokeColor2 = document.getElementById('strokeColor2')
+    const strokeWidth2 = document.getElementById('strokeWidth2')
+    const strokeAlpha2 = document.getElementById('strokeAlpha2')
+    toggleDrawerBtn.onclick = ()=> drawer.classList.add('open')
+    closeDrawerBtn.onclick = ()=> drawer.classList.remove('open')
+    penTool2.onclick = ()=> penTool.click()
+    markerTool2.onclick = ()=> markerTool.click()
+    highlighterTool2.onclick = ()=> highlighterTool.click()
+    strokeColor2.oninput = e => { strokeColor.value = e.target.value; color = e.target.value }
+    strokeWidth2.oninput = e => { strokeWidth.value = e.target.value; width = +e.target.value }
+    strokeAlpha2.oninput = e => { strokeAlpha.value = e.target.value; alpha = +e.target.value }
+
+    // Symbols quick menu (simple prompt for now)
+    document.getElementById('symbolsBtn').onclick = () => {
+      const s = prompt('Simbol (ex: respirație, mix, head, ↑, ↓):')
+      if (!s) return
+      // add as text at top-left for now
+      strokes.push({ tool:'text', color, width, alpha:1, text:{ value:s, font:'Inter', size:18, x:24, y:28 } })
+      redraw(); saveNotesDebounced()
+    }
+
+    // Text placement by click when tool = text
+    canvas.addEventListener('click', (e)=>{
+      if (tool !== 'text' || !document.getElementById('notesToggle').checked) return
+      const p = pointerPos(e)
+      strokes.push({ tool:'text', color, width, alpha:1, text:{ value: prompt('Text:' ) || '', font: document.getElementById('fontFamily').value, size:+document.getElementById('fontSize').value, x:p.x, y:p.y }})
+      redraw(); saveNotesDebounced()
+    })
+
+    document.getElementById('clearNotesBtn').onclick = ()=> {
+      if (!confirm('Sigur ștergi toate notițele tale pentru acest cântec?')) return
+      strokes = []; redraw(); saveNotes(true)
+    }
+    document.getElementById('exportPdfBtn').onclick = ()=> window.print()
+
+    // Share notes — fetch users & send copies (as notes rows for each target)
+    document.getElementById('shareNotesBtn').onclick = async ()=>{
+      await loadShareTargets()
+      drawer.classList.add('open')
+    }
+    document.getElementById('shareNowBtn').onclick = async ()=>{
+      const checks = [...document.querySelectorAll('#shareTargets input[type=checkbox]:checked')]
+      const targetIds = checks.map(c=>c.value)
+      if (!targetIds.length) { alert('Alege cel puțin un utilizator.'); return }
+      await shareNotesToTargets(targetIds)
+      alert('Notițele au fost trimise.')
+    }
+
+    // Notițe persistence (per user + song, or user + playlist + song if playlistId is present)
+    let currentUser = null
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      return user
+    }
+
+    async function saveNotes(clearInstead=false) {
+      if (!currentUser) return
+      const payload = clearInstead ? [] : strokes
+      const { error } = await supabase
+        .from('notes')
+        .upsert({
+          song_id: songId,
+          playlist_id: playlistId || null,
+          is_global: false,
+          owner_id: currentUser.id,
+          payload
+        }, { onConflict: 'song_id,playlist_id,owner_id' })
+      if (error) console.error('saveNotes error', error)
+    }
+    let saveTimer = null
+    function saveNotesDebounced() {
+      clearTimeout(saveTimer)
+      saveTimer = setTimeout(()=> saveNotes(false), 600)
+    }
+
+    async function loadMyNotes() {
+      if (!currentUser) return
+      const { data, error } = await supabase
+        .from('notes')
+        .select('payload')
+        .eq('song_id', songId)
+        .eq('owner_id', currentUser.id)
+        .eq('is_global', false)
+        .eq('playlist_id', playlistId || null)
+        .maybeSingle()
+      if (error) console.warn(error)
+      strokes = data?.payload || []
+      redraw()
+    }
+
+    async function loadShareTargets() {
+      const box = document.getElementById('shareTargets')
+      box.innerHTML = 'Se încarcă…'
+      const { data, error } = await supabase.from('profiles').select('id, full_name, email')
+      if (error) { box.innerHTML = 'Eroare la încărcare utilizatori.'; return }
+      box.innerHTML = data.map(u => `
+        <label style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+          <input type="checkbox" value="${u.id}" /> ${u.full_name || u.email}
+        </label>
+      `).join('')
+    }
+
+    async function shareNotesToTargets(targetUserIds) {
+      const rows = targetUserIds.map(uid => ({
+        song_id: songId,
+        playlist_id: playlistId || null,
+        is_global: false,
+        owner_id: uid,
+        payload: strokes
+      }))
+      const { error } = await supabase.from('notes').upsert(rows)
+      if (error) console.error('share error', error)
+    }
+
+    // Admin capabilities (MD select, signals)
+    let isAdmin = false
+    async function setAdminUI() {
+      if (!currentUser) return
+      const { data, error } = await supabase.from('profiles').select('role_type').eq('id', currentUser.id).single()
+      if (error) return
+      isAdmin = (data?.role_type === 'admin')
+      mdAdminWrap.style.display = isAdmin ? 'flex' : 'none'
+      adminSignalsWrap.style.display = isAdmin ? 'flex' : 'none'
+      if (isAdmin) {
+        // populate MD select with all users; mark online later if you wire presence
+        const { data: users } = await supabase.from('profiles').select('id, full_name, email')
+        mdSelect.innerHTML = users.map(u=>`<option value="${u.id}">${u.full_name || u.email}</option>`).join('')
+      }
+    }
+
+    sendSignalBtn.onclick = async ()=>{
+      const v = signalSelect.value
+      if (!v) return
+      let message = v
+      if (v === 'custom') {
+        const m = prompt('Mesaj către echipă:')
+        if (!m) return; message = m
+      }
+      // Here you could insert to a "live_signals" table or Realtime channel
+      alert('Semnal trimis: ' + message)
+    }
+
+    // Upcoming playlist banner (only if song appears in next/published Sunday/holiday/event)
+    async function loadUpcomingInfo(defaultKey) {
+      const today = new Date()
+      const { data, error } = await supabase
+        .from('playlist_songs')
+        .select('playlist_id, lead_user_id, harmony_user_id, playlists!inner(service_date, status), profiles!lead_user_id(full_name), profiles!harmony_user_id(full_name)')
+        .eq('song_id', songId)
+        .order('created_at', { ascending:false })
+        .limit(1)
+      if (error || !data?.length) return
+      const row = data[0]
+      const date = row.playlists?.service_date
+      if (!date) return
+      upcomingBox.style.display = 'flex'
+      upcomingDate.textContent = new Date(date).toLocaleDateString('ro-RO', { weekday:'long', year:'numeric', month:'short', day:'numeric' })
+      // names (fallback to “—”)
+      upcomingLead.textContent = row.profiles?.full_name || '—'
+      upcomingHarmony.textContent = row.profiles_1?.full_name || '—'
+    }
+
+    // Lyrics render
+    let currentNotation = 'intl'
+    let currentNashKey = null
+    function renderLyrics(lyrics, notationMode, nashKey) {
+      // Supports simple headings like "Strofa 1:", "Pre-chorus:", "Bridge:", etc. and [CHORD] tags inside lines
+      const lines = lyrics.split(/\r?\n/)
+      const map = (notationMode === 'nash' && nashKey) ? nashNumbersForKey(nashKey) : null
+      const out = []
+      for (const raw of lines) {
+        if (!raw.trim()) { out.push('<div class="line">&nbsp;</div>'); continue }
+        // headings
+        if (/^\s*(Strofa|Vers|Verse|Pre-chorus|Prechorus|Chorus|Refren|Bridge|Punte|Intro|Outro)/i.test(raw)) {
+          out.push(`<div class="section-title">${raw.trim()}</div>`)
+          continue
+        }
+        // chorded line
+        const { pure, chordHtml } = placeChordsLine(raw.replace(/\[([^\]]+)\]/g, (m,g1)=>{
+          if (map) return `[${chordToNash(g1, map)}]`
+          return m
+        }))
+        const chordRow = chordHtml ? `<div class="chords">${chordHtml}</div>` : ''
+        out.push(`<div class="line">${chordRow}<div class="lyrics">${pure}</div></div>`)
+      }
+      lyricsBlock.innerHTML = out.join('\n')
+    }
+
+    // Notation UI
+    notationSelect.onchange = ()=>{
+      currentNotation = notationSelect.value
+      nashKeyWrap.style.display = currentNotation === 'nash' ? 'flex' : 'none'
+      if (currentNotation === 'nash') renderLyrics(cache.lyrics_markdown || '', 'nash', nashKeySelect.value)
+      else renderLyrics(cache.lyrics_markdown || '', 'intl', null)
+    }
+    nashKeySelect.onchange = ()=>{
+      renderLyrics(cache.lyrics_markdown || '', 'nash', nashKeySelect.value)
+    }
+
+    // Layout selector (for now this toggles hiding chord rows or showing cues placeholder)
+    layoutSelect.onchange = ()=>{
+      const v = layoutSelect.value
+      const chords = document.querySelectorAll('.chords')
+      chords.forEach(c => c.style.display = (v === 'lyrics_only' || v === 'cues') ? 'none' : 'block')
+      // cues: you may later swap lyrics for cue blocks; we just hide chords now
+    }
+
+    // Fill Nashville key dropdown
+    ;(()=>{
+      const keys = ['C','C#','Db','D','D#','Eb','E','F','F#','Gb','G','G#','Ab','A','A#','Bb','B']
+      nashKeySelect.innerHTML = keys.map(k=>`<option>${k}</option>`).join('')
+    })()
+
+    // Load song + resources
+    const cache = {}
     async function loadSong() {
-      if (!songId) return;
-
+      if (!songId) { lyricsBlock.textContent = 'Lipsește id-ul cântecului în URL.'; return }
       const { data: song, error } = await supabase
         .from('songs')
-        .select('id,title,default_key,bpm,youtube_url,audio_harmony,audio_main,lyrics_markdown')
+        .select('*')
         .eq('id', songId)
-        .single();
+        .single()
+      if (error || !song) { lyricsBlock.textContent = 'Cântec inexistent.'; return }
 
-      if (error || !song) {
-        document.getElementById('songCard').innerHTML = '<div class="muted">Nu am găsit cântecul.</div>';
-        return;
-      }
+      cache.lyrics_markdown = song.lyrics_markdown || ''
+      songTitleEl.textContent = song.title || '—'
+      songBpmEl.textContent = song.bpm ?? '—'
+      songKeyEl.textContent = song.key ?? '—'
 
-      document.getElementById('title').textContent = song.title || '—';
+      // resources
+      ytLink.style.display = song.youtube ? 'inline-flex' : 'none'
+      if (song.youtube) ytLink.href = song.youtube
+      audio1Link.style.display = song.audio1 ? 'inline-flex' : 'none'
+      if (song.audio1) audio1Link.href = song.audio1
+      audio2Link.style.display = song.audio2 ? 'inline-flex' : 'none'
+      if (song.audio2) audio2Link.href = song.audio2
 
-      document.getElementById('metaRow').innerHTML = [
-        pill('Gama', song.default_key),
-        pill('BPM', song.bpm),
-        linkPill('YouTube', song.youtube_url),
-        linkPill('Audio Armonie', song.audio_harmony),
-        linkPill('Audio Principal', song.audio_main),
-      ].join('');
+      // default Nashville key selection
+      if (song.key) nashKeySelect.value = song.key
 
-      document.getElementById('lyricsArea').textContent = song.lyrics_markdown || '(Fără conținut momentan)';
+      // initial render
+      renderLyrics(song.lyrics_markdown || '', currentNotation, currentNotation==='nash' ? nashKeySelect.value : null)
 
-      // (Optional) show upcoming info if in next playlist — we’ll hook this up when playlists are ready.
+      // Optional instruction band visibility (if you store such text in song later)
+      topInstructionBand.style.display = 'none'
+
+      // upcoming info
+      await loadUpcomingInfo(song.key)
     }
 
-    loadSong();
+    // Auth
+    currentUser = (await supabase.auth.getUser()).data.user
+    if (!currentUser) {
+      // if you have magic-link sign in, redirect to login
+      console.log('Not logged in; notes will not save.')
+    }
+
+    // Init
+    fitCanvas()
+    await loadSong()
+    await setAdminUI()
+    await loadMyNotes()
   </script>
 </body>
 </html>
