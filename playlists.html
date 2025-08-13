@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Playlists — GWI</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="banner">
+    <div class="brand" onclick="location.href='/'">
+      <img src="/logo-white.png" alt="GWI" />
+      <strong>GENESIS Worship Initiative</strong>
+    </div>
+    <nav class="menu">
+      <a href="/index.html">Home</a>
+      <a href="/song-index.html">Songs List</a>
+      <a href="/playlists.html" aria-current="page">Playlists</a>
+      <a href="/availability.html">Availability</a>
+      <a href="/prayer-wall.html">Prayer Wall</a>
+      <a href="/profile.html">Profil</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h2 class="section-title">Playlists viitoare</h2>
+        <div style="display:flex; gap:8px;">
+          <a class="btn secondary" href="/events.html">Vezi playlist-uri de eveniment</a>
+          <!-- For admin later: <button class="btn" id="createBtn">Creează playlist</button> -->
+        </div>
+      </div>
+
+      <table class="table" id="plTable" style="margin-top:8px;">
+        <thead>
+          <tr>
+            <th style="width:28%;">Titlu</th>
+            <th style="width:14%;">Tip</th>
+            <th style="width:18%;">Dată</th>
+            <th style="width:12%;">Status</th>
+            <th style="width:12%;"># Cântece</th>
+            <th style="width:16%;">Deschide</th>
+          </tr>
+        </thead>
+        <tbody id="plBody">
+          <tr><td colspan="6" class="muted">Se încarcă…</td></tr>
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        <span class="info" id="countInfo">—</span>
+        <button class="btn" id="prevBtn">Înapoi</button>
+        <button class="btn" id="nextBtn">Înainte</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://wibsmlfdvjgksbvuzmzn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpYnNtbGZkdmpna3NidnV6bXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NzMwOTksImV4cCI6MjA3MDM0OTA5OX0.1t9mtRNBjA42uyYIUs2lVwkPFij33CjUPxAh_7J2Iqc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let page=0, pageSize=10, total=0;
+
+    const els = {
+      body: document.getElementById("plBody"),
+      prev: document.getElementById("prevBtn"),
+      next: document.getElementById("nextBtn"),
+      count: document.getElementById("countInfo"),
+    };
+
+    function typeLabel(t){
+      if (t === 'holiday') return 'Sărbătoare';
+      if (t === 'event') return 'Eveniment';
+      return 'Duminică';
+    }
+
+    async function loadCount(){
+      const { count, error } = await supabase
+        .from('playlists')
+        .select('*', { head:true, count:'exact' })
+        .gte('service_date', new Date().toISOString().slice(0,10));
+      if (!error) total = count || 0;
+    }
+
+    async function load(){
+      els.body.innerHTML = `<tr><td colspan="6" class="muted">Se încarcă…</td></tr>`;
+      await loadCount();
+
+      const from = page*pageSize;
+      const to   = from + pageSize - 1;
+
+      const { data, error } = await supabase
+        .from('playlists')
+        .select('id,title,type,status,service_date, playlist_songs(count)')
+        .gte('service_date', new Date().toISOString().slice(0,10))
+        .order('service_date', { ascending: true })
+        .range(from, to);
+
+      if (error){
+        els.body.innerHTML = `<tr><td colspan="6" class="muted">Eroare: ${error.message}</td></tr>`;
+        return;
+      }
+
+      if (!data || !data.length){
+        els.body.innerHTML = `<tr><td colspan="6" class="muted">Nu există playlist-uri viitoare.</td></tr>`;
+      } else {
+        els.body.innerHTML = data.map(pl=>{
+          const cnt = Array.isArray(pl.playlist_songs) && pl.playlist_songs.length ? pl.playlist_songs[0].count : '—';
+          return `
+            <tr>
+              <td>${pl.title || '(fără titlu)'}</td>
+              <td>${typeLabel(pl.type)}</td>
+              <td>${pl.service_date}</td>
+              <td>${pl.status}</td>
+              <td>${cnt}</td>
+              <td><a class="btn secondary" href="/playlist.html?id=${encodeURIComponent(pl.id)}">Deschide</a></td>
+            </tr>`;
+        }).join('');
+      }
+
+      els.count.textContent = `${Math.min((page+1)*pageSize, total)} din ${total}`;
+      els.prev.disabled = page===0;
+      els.next.disabled = (page+1)*pageSize >= total;
+    }
+
+    els.prev.addEventListener('click', ()=>{ if (page>0){ page--; load(); }});
+    els.next.addEventListener('click', ()=>{ if ((page+1)*pageSize < total){ page++; load(); }});
+
+    load();
+  </script>
+</body>
+</html>
