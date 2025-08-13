@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pagina Cântec — GWI</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .container { max-width: 1000px; margin: 0 auto; padding: 16px; }
+    .card { background: rgba(255,255,255,0.85); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); padding: 16px; }
+    .meta { display:flex; gap:16px; flex-wrap:wrap; color:#263839; margin:8px 0 14px; }
+    .meta .pill { background:#eef3f3; border-radius: 24px; padding:6px 10px; }
+    .banner { background:#263839; color:#fff; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:10px; cursor:pointer; }
+    .brand img { height:26px; }
+    .menu { display:flex; align-items:center; gap:14px; }
+    .menu a { color:#fff; text-decoration:none; font-weight:500; }
+  </style>
+</head>
+<body>
+  <header class="banner">
+    <div class="brand" onclick="location.href='/'">
+      <img src="/logo-white.png" alt="GWI" />
+      <strong>GENESIS Worship Initiative</strong>
+    </div>
+    <nav class="menu">
+      <a href="/index.html">Home</a>
+      <a href="/song-index.html">Songs List</a>
+      <a href="/playlists.html">Playlists</a>
+      <a href="/availability.html">Availability</a>
+      <a href="/prayer-wall.html">Prayer Wall</a>
+      <a href="/profile.html">Profil</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card" id="songCard">
+      <h2 id="title" style="margin:0 0 6px;">—</h2>
+      <div class="meta" id="metaRow">
+        <!-- BPM / Key / links injected -->
+      </div>
+
+      <div id="upcomingInfo" style="margin:8px 0 14px; display:none;" class="muted"></div>
+
+      <hr style="margin:16px 0; border:none; border-top:1px solid #eaeaea;" />
+
+      <div id="lyricsArea" style="white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color:#0a3a40;">
+        <!-- lyrics/chords (placeholder for now) -->
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "https://wibsmlfdvjgksbvuzmzn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpYnNtbGZkdmpna3NidnV6bXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NzMwOTksImV4cCI6MjA3MDM0OTA5OX0.1t9mtRNBjA42uyYIUs2lVwkPFij33CjUPxAh_7J2Iqc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const params = new URLSearchParams(location.search);
+    const songId = params.get('id');
+
+    function pill(label, value) {
+      return `<span class="pill"><strong>${label}:</strong> ${value || '—'}</span>`;
+    }
+    function linkPill(label, url) {
+      if (!url) return '';
+      const safe = url.replace(/"/g,'&quot;');
+      return `<span class="pill"><strong>${label}:</strong> <a href="${safe}" target="_blank" rel="noopener">deschide</a></span>`;
+    }
+
+    async function loadSong() {
+      if (!songId) return;
+
+      const { data: song, error } = await supabase
+        .from('songs')
+        .select('id,title,default_key,bpm,youtube_url,audio_harmony,audio_main,lyrics_markdown')
+        .eq('id', songId)
+        .single();
+
+      if (error || !song) {
+        document.getElementById('songCard').innerHTML = '<div class="muted">Nu am găsit cântecul.</div>';
+        return;
+      }
+
+      document.getElementById('title').textContent = song.title || '—';
+
+      document.getElementById('metaRow').innerHTML = [
+        pill('Gama', song.default_key),
+        pill('BPM', song.bpm),
+        linkPill('YouTube', song.youtube_url),
+        linkPill('Audio Armonie', song.audio_harmony),
+        linkPill('Audio Principal', song.audio_main),
+      ].join('');
+
+      document.getElementById('lyricsArea').textContent = song.lyrics_markdown || '(Fără conținut momentan)';
+
+      // (Optional) show upcoming info if in next playlist — we’ll hook this up when playlists are ready.
+    }
+
+    loadSong();
+  </script>
+</body>
+</html>
