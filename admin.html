@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--admin">
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a href="availability.html">Availability</a>
+      <a href="prayers.html">Prayer Wall</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Admin Panel</h1>
+      <div class="row gap wrap">
+        <a href="playlists.html" class="btn">Gestionează Playlists</a>
+        <a href="#" id="manageHolidays" class="btn btn--ghost">Gestionează Sărbători</a>
+        <a href="#" id="manageUsers" class="btn btn--ghost">Gestionează Utilizatori</a>
+      </div>
+      <p class="muted">Notificările la publicare/actualizare vor întreba dacă dorești să anunți echipa.</p>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  // We’ll flesh these out later. For now, this is a placeholder landing for admins.
+  </script>
+</body>
+</html>
