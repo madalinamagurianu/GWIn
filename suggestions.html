@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Sugestii</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--suggestions">
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a href="availability.html">Availability</a>
+      <a href="prayers.html">Prayer Wall</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Sugestii piese (echipă)</h1>
+      <div class="row gap">
+        <input id="sTitle" class="input" placeholder="Titlu" />
+        <input id="sKey" class="input input--small" placeholder="Gama (opțional)" />
+        <input id="sYoutube" class="input" placeholder="Link YouTube (opțional)" />
+        <input id="sAudio" class="input" placeholder="Link Audio (opțional)" />
+        <button id="sAdd" class="btn">Propune</button>
+      </div>
+
+      <div class="filters row gap">
+        <button data-status="all" class="chip chip--active">Toate</button>
+        <button data-status="pending" class="chip">În așteptare</button>
+        <button data-status="in_progress" class="chip">În lucru</button>
+        <button data-status="finalized" class="chip">Finalizat</button>
+        <button data-status="rejected" class="chip">Respins</button>
+        <button id="onlyMine" class="chip">Doar ale mele</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="table" id="teamSugTable">
+          <thead>
+            <tr>
+              <th>Titlu</th>
+              <th>Gama</th>
+              <th>Resurse</th>
+              <th>Status</th>
+              <th>Creat de</th>
+            </tr>
+          </thead>
+          <tbody id="teamSugBody">
+            <tr><td colspan="5">Încărcare…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h1>Lista propusă (lider)</h1>
+      <div class="filters row gap">
+        <button data-status2="all" class="chip chip--active">Toate</button>
+        <button data-status2="pending" class="chip">În așteptare</button>
+        <button data-status2="in_progress" class="chip">În lucru</button>
+        <button data-status2="finalized" class="chip">Finalizat</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="table" id="leaderTable">
+          <thead>
+            <tr>
+              <th>Titlu</th>
+              <th>Gama</th>
+              <th>Resurse</th>
+              <th>Status</th>
+              <th>Dată</th>
+            </tr>
+          </thead>
+          <tbody id="leaderBody">
+            <tr><td colspan="5">Încărcare…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h1>Istoric (filtrabil)</h1>
+      <div class="row gap">
+        <input type="month" id="histMonth" class="input" />
+        <button id="histApply" class="btn btn--ghost">Aplică</button>
+      </div>
+      <div id="history" class="history"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const statusChips = document.querySelectorAll('[data-status]');
+  const statusChips2 = document.querySelectorAll('[data-status2]');
+  const onlyMineBtn = document.getElementById('onlyMine');
+  let filter = 'all', filter2 = 'all', onlyMine = false;
+
+  statusChips.forEach(ch => ch.onclick = () => {
+    statusChips.forEach(x=>x.classList.remove('chip--active'));
+    ch.classList.add('chip--active');
+    filter = ch.dataset.status;
+    loadTeamSuggestions();
+  });
+  statusChips2.forEach(ch => ch.onclick = () => {
+    statusChips2.forEach(x=>x.classList.remove('chip--active'));
+    ch.classList.add('chip--active');
+    filter2 = ch.dataset.status2;
+    loadLeaderList();
+  });
+  onlyMineBtn.onclick = () => { onlyMine = !onlyMine; onlyMineBtn.classList.toggle('chip--active'); loadTeamSuggestions(); };
+
+  document.getElementById('sAdd').onclick = addSuggestion;
+  document.getElementById('histApply').onclick = loadHistory;
+
+  async function myId() {
+    const { data: { user } } = await sb.auth.getUser();
+    return user?.id || null;
+  }
+
+  async function addSuggestion() {
+    const title = document.getElementById('sTitle').value.trim();
+    if (!title) return alert('Titlu?');
+    const key = document.getElementById('sKey').value.trim() || null;
+    const youtube = document.getElementById('sYoutube').value.trim();
+    const audio  = document.getElementById('sAudio').value.trim();
+    const uid = await myId();
+    if (!uid) return alert('Autentifică-te.');
+
+    const resources = {};
+    if (youtube) resources.youtube = youtube;
+    if (audio) resources.audio = audio;
+
+    const { error } = await sb.from('song_suggestions').insert({
+      title, key, resources: Object.keys(resources).length? resources : null, submitted_by: uid
+    });
+    if (error) return alert(error.message);
+    document.getElementById('sTitle').value = '';
+    document.getElementById('sKey').value = '';
+    document.getElementById('sYoutube').value = '';
+    document.getElementById('sAudio').value = '';
+    loadTeamSuggestions();
+  }
+
+  async function loadTeamSuggestions() {
+    let q = sb.from('song_suggestions')
+      .select('id,title,key,resources,status,created_at,profiles(full_name),submitted_by', { count:'exact' })
+      .order('created_at', { ascending:false });
+    if (filter !== 'all') q = q.eq('status', filter);
+    if (onlyMine) {
+      const uid = await myId();
+      if (!uid) return alert('Autentifică-te.');
+      q = q.eq('submitted_by', uid);
+    }
+    const { data, error } = await q;
+    const body = document.getElementById('teamSugBody');
+    body.innerHTML = '';
+    if (error) { body.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; return; }
+    if (!data?.length) { body.innerHTML = `<tr><td colspan="5">Nimic.</td></tr>`; return; }
+    for (const s of data) {
+      const resLinks = [];
+      if (s.resources?.youtube) resLinks.push(`<a href="${s.resources.youtube}" target="_blank">YouTube</a>`);
+      if (s.resources?.audio) resLinks.push(`<a href="${s.resources.audio}" target="_blank">Audio</a>`);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.title}</td>
+        <td>${s.key || '-'}</td>
+        <td>${resLinks.join(' · ') || '-'}</td>
+        <td>${s.status}</td>
+        <td>${s.profiles?.full_name || ''} • ${new Date(s.created_at).toLocaleDateString()}</td>`;
+      body.appendChild(tr);
+    }
+  }
+
+  async function loadLeaderList() {
+    let q = sb.from('leader_proposals')
+      .select('title,key,resources,status,created_at')
+      .order('created_at',{ascending:false});
+    if (filter2 !== 'all') q = q.eq('status', filter2);
+    const { data, error } = await q;
+    const body = document.getElementById('leaderBody');
+    body.innerHTML = '';
+    if (error) { body.innerHTML = `<tr><td colspan="5">${error.message}</td></tr>`; return; }
+    if (!data?.length) { body.innerHTML = `<tr><td colspan="5">Nimic.</td></tr>`; return; }
+    for (const s of data) {
+      const resLinks = [];
+      if (s.resources?.youtube) resLinks.push(`<a href="${s.resources.youtube}" target="_blank">YouTube</a>`);
+      if (s.resources?.audio) resLinks.push(`<a href="${s.resources.audio}" target="_blank">Audio</a>`);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.title}</td>
+        <td>${s.key || '-'}</td>
+        <td>${resLinks.join(' · ') || '-'}</td>
+        <td>${s.status}</td>
+        <td>${new Date(s.created_at).toLocaleDateString()}</td>`;
+      body.appendChild(tr);
+    }
+  }
+
+  async function loadHistory() {
+    const ym = document.getElementById('histMonth').value; // YYYY-MM
+    const box = document.getElementById('history');
+    box.innerHTML = '';
+    if (!ym) { box.textContent = 'Selectează o lună.'; return; }
+    const start = ym + "-01";
+    const end = ym + "-31";
+
+    const { data: s1 } = await sb.from('song_suggestions')
+      .select('title,status,created_at,profiles(full_name)').gte('created_at', start).lte('created_at', end);
+    const { data: s2 } = await sb.from('leader_proposals')
+      .select('title,status,created_at').gte('created_at', start).lte('created_at', end);
+
+    const list = [...(s1||[]).map(x=>({kind:'Team', ...x})), ...(s2||[]).map(x=>({kind:'Leader', ...x}))];
+    if (!list.length) { box.textContent = 'Nimic în luna aleasă.'; return; }
+
+    list.sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
+    for (const it of list) {
+      const row = document.createElement('div');
+      row.className = 'history__row';
+      row.innerHTML = `<strong>[${it.kind}]</strong> ${it.title} — ${it.status} <span class="muted">• ${new Date(it.created_at).toLocaleDateString()}</span>`;
+      box.appendChild(row);
+    }
+  }
+
+  loadTeamSuggestions();
+  loadLeaderList();
+  </script>
+</body>
+</html>
