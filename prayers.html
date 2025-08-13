@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Prayer Wall</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--prayers">
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a href="availability.html">Availability</a>
+      <a class="active" href="prayers.html">Prayer Wall</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Prayer Wall</h1>
+
+      <div class="row gap">
+        <input id="pTitle" class="input" placeholder="Titlu" />
+        <input id="pDesc" class="input" placeholder="Descriere" />
+        <button id="pAdd" class="btn">Adaugă</button>
+        <label class="switch">
+          <input type="checkbox" id="filterAnswered">
+          <span>Arată doar „answered”</span>
+        </label>
+      </div>
+
+      <div class="row gap">
+        <div class="stat">
+          <div class="stat__label">Rugăciuni „answered”</div>
+          <div class="stat__value" id="answeredCount">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Toate rugăciunile</div>
+          <div class="stat__value" id="totalCount">0</div>
+        </div>
+      </div>
+
+      <div id="prayerList" class="prayers"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const pTitle = document.getElementById('pTitle');
+  const pDesc  = document.getElementById('pDesc');
+  document.getElementById('pAdd').onclick = addPrayer;
+  document.getElementById('filterAnswered').onchange = loadPrayers;
+
+  async function addPrayer() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return alert('Autentifică-te.');
+    const payload = { title: pTitle.value, content: pDesc.value, created_by: user.id, answered: false };
+    const { error } = await sb.from('prayers').insert(payload);
+    if (error) return alert(error.message);
+    pTitle.value = ''; pDesc.value = '';
+    loadPrayers();
+  }
+
+  async function toggleAnswered(id, checked) {
+    await sb.from('prayers').update({ answered: checked }).eq('id', id);
+    loadPrayers();
+  }
+
+  async function loadPrayers() {
+    const answeredOnly = document.getElementById('filterAnswered').checked;
+    let q = sb.from('prayers').select('id,title,content,answered,created_at,profiles(full_name)').order('created_at',{ascending:false});
+    if (answeredOnly) q = q.eq('answered', true);
+    const { data, error } = await q;
+
+    const list = document.getElementById('prayerList');
+    list.innerHTML = '';
+    if (error) { list.textContent = error.message; return; }
+    if (!data?.length) { list.textContent = 'Nimic încă.'; updateCounts([]); return; }
+
+    updateCounts(data);
+
+    for (const p of data) {
+      const card = document.createElement('div');
+      card.className = 'prayer';
+      card.innerHTML = `
+        <div class="prayer__head">
+          <h3>${p.title}</h3>
+          <label class="switch small">
+            <input type="checkbox" ${p.answered?'checked':''} />
+            <span>answered</span>
+          </label>
+        </div>
+        <div class="prayer__meta">
+          <span>${p.profiles?.full_name || '—'} • ${new Date(p.created_at).toLocaleString()}</span>
+        </div>
+        <p>${p.content || ''}</p>
+        <div class="prayer__actions">
+          <button class="btn btn--ghost">❤️</button>
+          <button class="btn btn--ghost">🙏</button>
+          <button class="btn btn--ghost">✨</button>
+        </div>
+      `;
+      card.querySelector('input[type="checkbox"]').onchange = (e)=>toggleAnswered(p.id, e.target.checked);
+      list.appendChild(card);
+    }
+  }
+
+  function updateCounts(arr) {
+    document.getElementById('totalCount').textContent = arr.length;
+    document.getElementById('answeredCount').textContent = arr.filter(x=>x.answered).length;
+  }
+
+  loadPrayers();
+  </script>
+</body>
+</html>
