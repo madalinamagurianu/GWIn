@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Availability</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--availability">
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a class="active" href="availability.html">Availability</a>
+      <a href="prayers.html">Prayer Wall</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Disponibilitate</h1>
+      <div class="row gap">
+        <input type="date" id="dateInput" class="input" />
+        <select id="statusInput" class="input">
+          <option value="available">Available</option>
+          <option value="maybe">Maybe</option>
+          <option value="unavailable">Unavailable</option>
+        </select>
+        <input id="noteInput" class="input" placeholder="Comentariu (opțional)" />
+        <button id="saveBtn" class="btn">Salvează</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="table" id="avTable">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Nume</th>
+              <th>Status</th>
+              <th>Comentariu</th>
+            </tr>
+          </thead>
+          <tbody id="avBody">
+            <tr><td colspan="4">Încărcare…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const dateEl = document.getElementById('dateInput');
+  const statusEl = document.getElementById('statusInput');
+  const noteEl = document.getElementById('noteInput');
+
+  document.getElementById('saveBtn').onclick = saveAvailability;
+
+  async function currentUserId() {
+    const { data: { user } } = await sb.auth.getUser();
+    return user?.id || null;
+  }
+
+  async function saveAvailability() {
+    const userId = await currentUserId();
+    if (!userId) { alert('Trebuie să fii autentificat.'); return; }
+    const payload = {
+      user_id: userId,
+      service_date: dateEl.value,
+      status: statusEl.value,
+      note: noteEl.value || null
+    };
+    const { error } = await sb.from('availability').upsert(payload, { onConflict: 'user_id,service_date' });
+    if (error) return alert(error.message);
+    loadAvailability();
+    noteEl.value = '';
+  }
+
+  async function loadAvailability() {
+    const { data, error } = await sb.from('availability')
+      .select('service_date,status,note,profiles(full_name)')
+      .order('service_date', { ascending:true });
+    const body = document.getElementById('avBody');
+    body.innerHTML = '';
+    if (error) { body.innerHTML = `<tr><td colspan="4">${error.message}</td></tr>`; return; }
+    if (!data?.length) { body.innerHTML = `<tr><td colspan="4">Nicio înregistrare.</td></tr>`; return; }
+    for (const r of data) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${new Date(r.service_date).toLocaleDateString()}</td>
+        <td>${r.profiles?.full_name || '-'}</td>
+        <td>${r.status}</td>
+        <td>${r.note || ''}</td>`;
+      body.appendChild(tr);
+    }
+  }
+
+  loadAvailability();
+  </script>
+</body>
+</html>
