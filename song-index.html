@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lista Cântece — GWI</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    /* light helpers that respect your palette */
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .card { background: rgba(255,255,255,0.85); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.06); padding: 12px; }
+    .header-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 8px 0 12px; }
+    .search { flex:1; display:flex; gap:8px; }
+    .search input { flex:1; padding:10px 12px; border:1px solid #ccc; border-radius:8px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding: 10px 8px; border-bottom: 1px solid #eaeaea; vertical-align: middle; }
+    .table th { text-align:left; font-weight:600; color:#263839; }
+    .badge { display:inline-flex; align-items:center; gap:6px; }
+    .icon-btn { border:none; background:transparent; cursor:pointer; padding:6px; }
+    .icon { width:22px; height:22px; display:inline-block; }
+    .muted { color:#6b7280; font-size:.9em; }
+    .pagination { display:flex; align-items:center; gap:8px; justify-content:flex-end; padding-top:10px; }
+    .pagination button { padding:8px 10px; border:none; border-radius:8px; cursor:pointer; background:#263839; color:#fff; }
+    .pagination button[disabled] { opacity:.4; cursor:not-allowed; }
+    .banner { background:#263839; color:#fff; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:10px; cursor:pointer; }
+    .brand img { height:26px; }
+    .menu { display:flex; align-items:center; gap:14px; }
+    .menu a { color:#fff; text-decoration:none; font-weight:500; }
+    .table a.title-link { color:#0a3a40; text-decoration:none; font-weight:600; }
+    .labels { display:flex; flex-wrap:wrap; gap:6px; }
+    .label { background:#eef3f3; color:#263839; border-radius:10px; padding:2px 8px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <!-- Top banner -->
+  <header class="banner">
+    <div class="brand" onclick="location.href='/'">
+      <!-- Use your logo file path if different -->
+      <img src="/logo-white.png" alt="GWI" />
+      <strong>GENESIS Worship Initiative</strong>
+    </div>
+    <nav class="menu">
+      <a href="/index.html">Home</a>
+      <a href="/song-index.html" aria-current="page">Songs List</a>
+      <a href="/playlists.html">Playlists</a>
+      <a href="/availability.html">Availability</a>
+      <a href="/prayer-wall.html">Prayer Wall</a>
+      <a href="/profile.html">Profil</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <div class="header-row">
+        <h2 style="margin:0;">Lista Cântece</h2>
+        <div class="search">
+          <input id="searchInput" type="search" placeholder="Caută după titlu…" />
+          <button id="clearBtn" class="icon-btn" title="Șterge căutarea">✖</button>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-bottom:8px;">
+        Click pe titlu pentru a deschide pagina cântecului.
+      </div>
+
+      <table class="table" id="songsTable">
+        <thead>
+          <tr>
+            <th style="width:36%;">Titlu</th>
+            <th style="width:10%;">Gama</th>
+            <th style="width:10%;">BPM</th>
+            <th style="width:10%;">YouTube</th>
+            <th style="width:17%;">Audio (Armonie)</th>
+            <th style="width:17%;">Audio (Principal)</th>
+          </tr>
+        </thead>
+        <tbody id="songsBody">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        <span class="muted" id="countInfo">—</span>
+        <button id="prevBtn">Înapoi</button>
+        <button id="nextBtn">Înainte</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Supabase + App JS -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // ==== CONFIG — uses your actual project details ====
+    const SUPABASE_URL = "https://wibsmlfdvjgksbvuzmzn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpYnNtbGZkdmpna3NidnV6bXpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NzMwOTksImV4cCI6MjA3MDM0OTA5OX0.1t9mtRNBjA42uyYIUs2lVwkPFij33CjUPxAh_7J2Iqc";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ==== UI helpers ====
+    const YT_SVG = `
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M23.5 6.2a4 4 0 0 0-2.8-2.8C18.9 3 12 3 12 3s-6.9 0-8.7.4A4 4 0 0 0 .5 6.2 41.3 41.3 0 0 0 0 12a41.3 41.3 0 0 0 .5 5.8 4 4 0 0 0 2.8 2.8C5.1 21 12 21 12 21s6.9 0 8.7-.4a4 4 0 0 0 2.8-2.8A41.3 41.3 0 0 0 24 12a41.3 41.3 0 0 0-.5-5.8ZM9.6 15.5V8.5L15.9 12l-6.3 3.5Z" fill="currentColor"></path>
+      </svg>`;
+    const AUDIO_SVG = `
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 10a1 1 0 0 1 1 1v2a8 8 0 0 0 8 8h1a1 1 0 1 1 0 2h-1A10 10 0 0 1 2 13v-2a1 1 0 0 1 1-1Zm11-7a1 1 0 0 1 1 1v8.535a3.5 3.5 0 1 1-2 3.131V4a1 1 0 0 1 1-1Zm-5 3a1 1 0 0 1 1 1v5.535a3.5 3.5 0 1 1-2 3.131V7a1 1 0 0 1 1-1Z" fill="currentColor"></path>
+      </svg>`;
+
+    // ==== Paging & search state ====
+    let page = 0;
+    const pageSize = 25;
+    let lastCount = 0;
+    let currentSearch = "";
+
+    const els = {
+      body: document.getElementById("songsBody"),
+      prev: document.getElementById("prevBtn"),
+      next: document.getElementById("nextBtn"),
+      countInfo: document.getElementById("countInfo"),
+      search: document.getElementById("searchInput"),
+      clear: document.getElementById("clearBtn"),
+    };
+
+    els.prev.addEventListener("click", () => { if (page>0) { page--; load(); }});
+    els.next.addEventListener("click", () => { if ((page+1)*pageSize < lastCount) { page++; load(); }});
+    els.search.addEventListener("input", debounce(() => {
+      currentSearch = els.search.value.trim();
+      page = 0;
+      load();
+    }, 250));
+    els.clear.addEventListener("click", () => {
+      els.search.value = "";
+      currentSearch = "";
+      page = 0;
+      load();
+    });
+
+    function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t = setTimeout(()=>fn(...a), ms); } }
+
+    function linkOrDash(url, labelHTML) {
+      if (!url || typeof url !== 'string' || url.trim() === "") return '<span class="muted">—</span>';
+      const safe = url.replace(/"/g, '&quot;');
+      return `<a class="icon-btn" href="${safe}" target="_blank" rel="noopener noreferrer" title="${safe}">${labelHTML}</a>`;
+    }
+
+    function titleCell(song) {
+      const title = song.title ?? "(fără titlu)";
+      return `<a class="title-link" href="/song.html?id=${encodeURIComponent(song.id)}">${title}</a>
+        ${Array.isArray(song.labels) && song.labels.length ? (
+          `<div class="labels" style="margin-top:4px;">${song.labels.map(l=>`<span class="label">${escapeHtml(l)}</span>`).join("")}</div>`
+        ) : ""}`;
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m])); }
+
+    async function load() {
+      els.body.innerHTML = `<tr><td colspan="6" class="muted">Se încarcă…</td></tr>`;
+
+      // 1) total count (for pagination)
+      let countQuery = supabase.from('songs').select('*', { count: 'exact', head: true });
+      if (currentSearch) countQuery = countQuery.ilike('title', `%${currentSearch}%`);
+      const { count, error: countError } = await countQuery;
+      if (countError) {
+        els.body.innerHTML = `<tr><td colspan="6" class="muted">Eroare la count: ${escapeHtml(countError.message)}</td></tr>`;
+        return;
+      }
+      lastCount = count ?? 0;
+
+      // 2) page data
+      let q = supabase
+        .from('songs')
+        .select('id,title,default_key,bpm,youtube_url,audio_harmony,audio_main,labels')
+        .order('title', { ascending: true })
+        .range(page*pageSize, page*pageSize + pageSize - 1);
+
+      if (currentSearch) q = q.ilike('title', `%${currentSearch}%`);
+
+      const { data, error } = await q;
+      if (error) {
+        els.body.innerHTML = `<tr><td colspan="6" class="muted">Eroare: ${escapeHtml(error.message)}</td></tr>`;
+        return;
+      }
+
+      els.countInfo.textContent = `${Math.min((page+1)*pageSize, lastCount)} din ${lastCount}`;
+
+      if (!data || !data.length) {
+        els.body.innerHTML = `<tr><td colspan="6" class="muted">Niciun rezultat.</td></tr>`;
+        return;
+      }
+
+      els.body.innerHTML = data.map(s => `
+        <tr>
+          <td>${titleCell(s)}</td>
+          <td>${escapeHtml(s.default_key || "")}</td>
+          <td>${escapeHtml(s.bpm || "")}</td>
+          <td>${linkOrDash(s.youtube_url, YT_SVG)}</td>
+          <td>${linkOrDash(s.audio_harmony, AUDIO_SVG)}</td>
+          <td>${linkOrDash(s.audio_main, AUDIO_SVG)}</td>
+        </tr>
+      `).join("");
+
+      els.prev.disabled = page === 0;
+      els.next.disabled = (page+1)*pageSize >= lastCount;
+    }
+
+    load();
+  </script>
+</body>
+</html>
