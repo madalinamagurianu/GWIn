@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Profil</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--profile">
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a href="availability.html">Availability</a>
+      <a href="prayers.html">Prayer Wall</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h1>Profilul meu</h1>
+      <div id="profileBox" class="profile"></div>
+
+      <h2>Preferințe</h2>
+      <div class="row gap">
+        <label>Limba:
+          <select id="prefLang" class="input">
+            <option value="ro">Română</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label>Versiune Biblie:
+          <input id="prefBible" class="input" placeholder="NTR / ESV…" />
+        </label>
+        <label>Layout implicit:
+          <select id="prefTemplate" class="input">
+            <option value="lyrics_only">Lyrics only</option>
+            <option value="lyrics_chords" selected>Lyrics + Chords</option>
+            <option value="cues">Cues</option>
+          </select>
+        </label>
+        <button id="savePrefs" class="btn">Salvează</button>
+      </div>
+
+      <h2>Roluri & Acces</h2>
+      <div id="rolesBox" class="roles"></div>
+      <button id="requestAccess" class="btn btn--ghost">Cere acces suplimentar</button>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const profileBox = document.getElementById('profileBox');
+  const rolesBox = document.getElementById('rolesBox');
+  const prefLang = document.getElementById('prefLang');
+  const prefBible = document.getElementById('prefBible');
+  const prefTemplate = document.getElementById('prefTemplate');
+
+  document.getElementById('savePrefs').onclick = savePrefs;
+  document.getElementById('requestAccess').onclick = () => alert('Se va trimite o cerere către admin (implementare notificări ulterior).');
+
+  async function loadProfile() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { profileBox.textContent = 'Nu ești autentificat.'; return; }
+    const { data } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+    if (!data) { profileBox.textContent = 'Profil negăsit.'; return; }
+    profileBox.innerHTML = `
+      <div class="row gap">
+        <img src="${data.avatar_url || 'assets/icon-profile.svg'}" class="avatar" />
+        <div>
+          <div><strong>${data.full_name || user.email}</strong></div>
+          <div class="muted">${user.email}</div>
+          <div class="muted">Rol: ${data.role_type}</div>
+        </div>
+      </div>
+    `;
+    prefLang.value = data.preferred_language || 'ro';
+    prefBible.value = data.preferred_bible || '';
+    prefTemplate.value = data.preferred_template || 'lyrics_chords';
+    rolesBox.innerHTML = `
+      <div class="muted">Rol principal: ${data.role_type}</div>
+      <div class="muted">Permisiuni personalizate: (viitorul panou)</div>
+    `;
+  }
+
+  async function savePrefs() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return alert('Autentifică-te.');
+    const { error } = await sb.from('profiles').update({
+      preferred_language: prefLang.value,
+      preferred_bible: prefBible.value || null,
+      preferred_template: prefTemplate.value
+    }).eq('id', user.id);
+    if (error) return alert(error.message);
+    alert('Salvat!');
+  }
+
+  loadProfile();
+  </script>
+</body>
+</html>
