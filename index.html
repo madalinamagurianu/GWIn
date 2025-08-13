@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GWI • Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="page page--dashboard">
+  <!-- Top Banner -->
+  <header class="banner">
+    <div class="banner__brand">
+      <img src="assets/logo-white.svg" alt="GWI" class="brand__logo" />
+      <span class="brand__name">GENESIS Worship Initiative</span>
+    </div>
+    <nav class="banner__nav">
+      <a href="index.html">Home</a>
+      <a href="playlists.html">Playlists</a>
+      <a href="songs.html">Songs List</a>
+      <a href="availability.html">Availability</a>
+      <a href="prayers.html">Prayer Wall</a>
+      <div class="menu__right">
+        <a href="profile.html" title="Profil">
+          <img src="assets/icon-profile.svg" class="nav__icon" />
+        </a>
+        <button id="hamburger" class="hamburger" aria-label="Menu">☰</button>
+        <div id="menu" class="dropdown hidden">
+          <a href="index.html">Home</a>
+          <a href="playlists.html">Playlists</a>
+          <a href="songs.html">Songs List</a>
+          <a href="availability.html">Availability</a>
+          <a href="prayers.html">Prayer Wall</a>
+          <a href="suggestions.html">Sugestii</a>
+          <a href="admin.html">Admin</a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <!-- Main Window -->
+  <main class="container">
+    <section class="card">
+      <h1 id="hello">Salut!</h1>
+      <div class="verse-of-day" id="verseBox">
+        <div class="vod__label">Versetul zilei</div>
+        <div class="vod__text" id="verseText">„…”</div>
+        <div class="vod__ref" id="verseRef">—</div>
+      </div>
+
+      <div class="row row--stats">
+        <div class="stat">
+          <div class="stat__label">Următoarea sărbătoare</div>
+          <div class="stat__value" id="nextHolidayName">—</div>
+          <div class="stat__sub" id="nextHolidayDate">—</div>
+          <div class="stat__countdown" id="nextHolidayCountdown">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat__label">Duminica următoare</div>
+          <div class="stat__value" id="nextServiceDate">—</div>
+          <div class="stat__sub">Ora: 17:00 (Londra)</div>
+        </div>
+      </div>
+
+      <div class="playlist-window">
+        <div class="playlist-window__header">
+          <h2>Playlist Duminică (următoarea)</h2>
+          <a class="btn btn--ghost" href="playlists.html">Playlists ▸</a>
+        </div>
+        <div class="table-wrapper">
+          <table class="table" id="upcomingTable">
+            <thead>
+              <tr>
+                <th>Titlu</th>
+                <th>Gama</th>
+                <th>BPM</th>
+                <th>Lead</th>
+                <th>Armonie</th>
+              </tr>
+            </thead>
+            <tbody id="upcomingBody">
+              <tr><td colspan="5">Încărcare…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="quick-links">
+        <a href="prayers.html" class="btn">Prayer Wall</a>
+        <a href="availability.html" class="btn">Availability</a>
+        <a href="suggestions.html" class="btn">Sugestii</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+  const SUPABASE_URL = "https://jjqphteqyqjkathxmrrx.supabase.co";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  document.getElementById('hamburger').onclick = () => {
+    document.getElementById('menu').classList.toggle('hidden');
+  };
+
+  async function loadProfile() {
+    const { data: { user } } = await sb.auth.getUser();
+    const email = user?.email;
+    let name = "utilizator";
+    if (email) {
+      const { data } = await sb.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      name = data?.full_name || email;
+    }
+    document.getElementById('hello').textContent = `Salut, ${name}!`;
+  }
+
+  // naive verse-of-day placeholder
+  function loadVerse() {
+    const verses = [
+      {t:'„Domnul este Păstorul meu…”', r:'Psalmii 23:1'},
+      {t:'„Nu te teme, căci Eu sunt cu tine.”', r:'Isaia 41:10'},
+      {t:'„Isus i-a zis: Eu sunt Calea, Adevărul și Viața.”', r:'Ioan 14:6'}
+    ];
+    const v = verses[new Date().getDate() % verses.length];
+    document.getElementById('verseText').textContent = v.t;
+    document.getElementById('verseRef').textContent = v.r;
+  }
+
+  async function nextHoliday() {
+    const today = new Date().toISOString().slice(0,10);
+    const { data, error } = await sb.from('holidays').select('*').gte('date', today).order('date',{ascending:true}).limit(1);
+    if (data && data.length) {
+      const h = data[0];
+      const d = new Date(h.date+'T00:00:00');
+      document.getElementById('nextHolidayName').textContent = h.name;
+      document.getElementById('nextHolidayDate').textContent = d.toLocaleDateString();
+      const ms = d - new Date();
+      const days = Math.max(0, Math.ceil(ms/(1000*60*60*24)));
+      document.getElementById('nextHolidayCountdown').textContent = `${days} zile rămase`;
+    }
+  }
+
+  async function loadUpcomingSunday() {
+    // next Sunday date
+    const now = new Date();
+    const nextSun = new Date(now);
+    nextSun.setDate(now.getDate() + ((7 - now.getDay()) % 7 || 7)); // next Sunday (not today)
+    document.getElementById('nextServiceDate').textContent = nextSun.toLocaleDateString();
+
+    // find playlist for that date (type 'sunday')
+    const { data: pls } = await sb.from('playlists')
+      .select('id, title, service_date')
+      .eq('type','sunday')
+      .eq('service_date', nextSun.toISOString().slice(0,10))
+      .limit(1);
+    const tbody = document.getElementById('upcomingBody');
+    tbody.innerHTML = '';
+    if (!pls?.length) {
+      tbody.innerHTML = '<tr><td colspan="5">Încă nu există playlist publicat pentru duminica următoare.</td></tr>';
+      return;
+    }
+    const playlistId = pls[0].id;
+
+    const { data: items } = await sb.from('playlist_songs')
+      .select('position, override_key, override_bpm, lead_user_id, harmony_user_id, songs(title, default_key, bpm), lead:profiles!playlist_songs_lead_user_id_fkey(full_name), harm:profiles!playlist_songs_harmony_user_id_fkey(full_name)')
+      .eq('playlist_id', playlistId)
+      .order('position', { ascending:true });
+
+    if (!items?.length) {
+      tbody.innerHTML = '<tr><td colspan="5">Playlistul nu are încă piese.</td></tr>';
+      return;
+    }
+    for (const it of items) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><a href="song.html?id=${it.songs?.id || ''}">${it.songs?.title || '-'}</a></td>
+        <td>${it.override_key || it.songs?.default_key || '-'}</td>
+        <td>${it.override_bpm || it.songs?.bpm || '-'}</td>
+        <td>${it.lead?.full_name || '-'}</td>
+        <td>${it.harm?.full_name || '-'}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  loadProfile();
+  loadVerse();
+  nextHoliday();
+  loadUpcomingSunday();
+  </script>
+</body>
+</html>
